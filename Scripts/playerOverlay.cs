@@ -3,45 +3,57 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
-public class playerOverlay : MonoBehaviour, IPointerDownHandler
+public class playerOverlay : MonoBehaviour, IPointerDownHandler, IPointerEnterHandler
 {
     public GameObject lootObjectPrefab;
-    private GameObject _inAirObject;
+    private inAirItem _inAirObject;
+
+    public GameObject hpContainer;
+    public GameObject buffContainer;
+
+    public GameObject player;
+
+    private detailsPanel _detailsPanel;
+    private bool _android;
 
     private void Awake()
     {
+        _detailsPanel = player.GetComponent<playerUI>().inventory.GetComponent<playerInventory>().detailsPanel.GetComponent<detailsPanel>();
+        _inAirObject = player.GetComponent<playerUI>().inAirItem.GetComponent<inAirItem>();
+        if (_inAirObject == null) { Debug.LogError("failed to find inAirObject"); }
+        _android = player.GetComponent<PlayerScript>().android;
 
-        _inAirObject = GameObject.Find("Player/Camera/UI/InAirItem");
-        if (_inAirObject == null)
-        {
-            Debug.LogWarning("failed to find inAirItem");
-        }
     }
     public void OnPointerDown(PointerEventData eventData)
     {
-        //Take inair item, and spawn it near player
+        //if an item is inAir, drop it
         if (_inAirObject.gameObject.activeSelf)
         {
-            for(int j = 0;j < _inAirObject.GetComponent<inAirItem>().stack; j++)
-            {
-                Vector2 v = new Vector2(Random.value * 2 - 1, Random.value * 2 - 1);
-                v.Normalize();
-
-                Transform pos = GameObject.Find("Player").transform;
-
-                float d = 2f;
-                Vector3 newPos = new Vector3(pos.position.x + v.x * d, pos.position.y + v.y * d, pos.position.z);
-
-                var i = Instantiate(lootObjectPrefab, newPos, Quaternion.identity);
-                i.GetComponent<lootableObject>().setItem(_inAirObject.GetComponent<inAirItem>().item);
-                i.transform.parent = null;
-            }
-
-            _inAirObject.GetComponent<inAirItem>().item = null;
-            _inAirObject.gameObject.SetActive(false);
-
+            _inAirObject.dropItem();
         }
+
+        //on android, move player to tap location
+        if (_android)
+        {
+            if(Input.touchCount == 1)
+            {
+                Touch touch = Input.GetTouch(0);
+                Vector3 pos = Camera.main.ScreenToWorldPoint(touch.position);
+                player.GetComponent<playerMovementAndroid>().moveToPoint(new Vector2(pos.x, pos.y));
+
+            }
+        }
+
     }
-  
+    public void OnPointerEnter(PointerEventData eventData)
+    {
+        if (_inAirObject.gameObject.activeSelf == true)
+        {
+            _inAirObject.setHoveringOver(gameObject);
+        }
+
+        _detailsPanel.gameObject.SetActive(false);
+    }
+
 
 }

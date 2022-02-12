@@ -7,6 +7,7 @@ public class inAirItem : MonoBehaviour
     public Item item;
     private Vector2 _startSlot;
     private string _cameFrom;
+    [HideInInspector]
     public int stack;
     private UnityEngine.UI.Text _stackText;
 
@@ -14,14 +15,19 @@ public class inAirItem : MonoBehaviour
     private playerAttributes _attributes;
     private playerEquipment _equipment;
     public GameObject lootObjectPrefab;
+    public GameObject inventory;
 
+    private GameObject _hoveringOver;
+    private bool _android;
     private void Awake()
     {
-        _inventory = GameObject.Find("Player/Camera/UI/Inventory").GetComponent<playerInventory>();
-        _attributes = GameObject.Find("Player/Camera/UI/Attributes").GetComponent<playerAttributes>();
-        _equipment = GameObject.Find("Player/Camera/UI/Equipment").GetComponent<playerEquipment>();
-        _stackText = transform.GetChild(0).GetComponent<UnityEngine.UI.Text>();
+        _inventory = inventory.GetComponent<playerInventory>();
 
+        _attributes = _inventory.player.GetComponent<playerUI>().attributes.GetComponent<playerAttributes>();
+        _equipment = _inventory.player.GetComponent<playerUI>().equipment.GetComponent<playerEquipment>();
+
+        _stackText = transform.GetChild(0).GetComponent<UnityEngine.UI.Text>();
+        _android = _inventory.player.GetComponent<PlayerScript>().android;
     }
     void Update()
     {
@@ -35,48 +41,59 @@ public class inAirItem : MonoBehaviour
         {
             returnItem();
         }
+
         if (Input.GetKeyDown(KeyCode.F))
         {
-            dropItem();
+            dropToMap();
         }
 
+        if (_android)
+        {
+            if(Input.touchCount == 0)
+            {
+                dropItem();
+            }
+        }
     }
 
     public void closePanel()
     {
-        GetComponent<inAirItem>().item = null;
+
         GetComponent<UnityEngine.UI.Image>().sprite = null;
         this.item = null;
-        this._cameFrom = null;
+        _cameFrom = null;
+        stack = 0;
+        _stackText.text = "";
         gameObject.SetActive(false);
-        this.stack = 0;
-        transform.GetChild(0).GetComponent<UnityEngine.UI.Text>().text = "";
+
     }
     public void openPanel(Item item, int stacksize, Transform location, Vector2 slot, string cameFrom)
     {
 
-        this.item = item;
-        transform.position = location.position;
-        this._cameFrom = cameFrom;
-        this._startSlot = slot;
-        this.stack = stacksize;
-        transform.GetChild(0).GetComponent<UnityEngine.UI.Text>().text = stacksize.ToString();
-
         gameObject.SetActive(true);
-        GetComponent<inAirItem>().item = item;
+        this.item = item;
+        var mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+        mousePos.z = transform.position.z;
+        transform.position = mousePos;
+        _cameFrom = cameFrom;
+        _startSlot = slot;
+        stack = stacksize;
+        _stackText.text = stacksize.ToString();
+        transform.localScale = new Vector3(this.item.itemSize.x, this.item.itemSize.y, 1);
         GetComponent<UnityEngine.UI.Image>().sprite = item.sprite;
 
     }
     public void openPanel(Item item, Transform location, string cameFrom)
     {
-        this.item = item;
-        transform.position = location.position;
-        this._cameFrom = cameFrom;
-        this.stack = 1;
-        transform.GetChild(0).GetComponent<UnityEngine.UI.Text>().text = "";
-
         gameObject.SetActive(true);
-        GetComponent<inAirItem>().item = item;
+        this.item = item;
+        var mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+        mousePos.z = transform.position.z;
+        transform.position = mousePos;
+        _cameFrom = cameFrom;
+        stack = 1;
+        _stackText.text = "";
+        transform.localScale = new Vector3(this.item.itemSize.x, this.item.itemSize.y, 1);
         GetComponent<UnityEngine.UI.Image>().sprite = item.sprite;
 
     }
@@ -94,26 +111,95 @@ public class inAirItem : MonoBehaviour
         closePanel();
 
     }
+
+    public void setHoveringOver(GameObject obj)
+    {
+        _hoveringOver = obj;
+    }
+
     public void dropItem()
     {
-        for (int j = 0; j < this.stack; j++)
+
+        if(_hoveringOver == null)
         {
 
+            returnItem();
+
+        }else if(_hoveringOver.GetComponent<inventorySlot>() != null)
+        {
+ 
+            dropInInventory();
+
+        }else if(_hoveringOver.GetComponent<playerOverlay>() != null)
+        {
+  
+            dropToMap();
+
+        }else if(_hoveringOver.GetComponent<equipSlot>() != null)
+        {
+ 
+            dropInEquipment();
+        }
+
+    }
+    private void dropInInventory()
+    {
+        inventorySlot slot = _hoveringOver.GetComponent<inventorySlot>();
+
+        if (slot.placeItemInSlot(item))
+        {
+            slot.changeStackNumber(stack);
+            closePanel();
+        }
+        else
+        {
+            returnItem();
+        }
+    }
+    private void dropInEquipment()
+    {
+        equipSlot slot = _hoveringOver.GetComponent<equipSlot>();
+
+        if (item.eupipmentType == slot.equipType)
+        {
+
+            if (slot.item == null)
+            {
+
+                slot.placeItemInSlot(item);
+                closePanel();
+            }
+            else
+            {
+
+                _inventory.addToInventoryNoEquip(this.item);
+                slot.placeItemInSlot(item);
+                closePanel();
+
+            }
+        }
+        else
+        {
+            returnItem();
+        }
+    }
+    private void dropToMap()
+    {
+        for (int j = 0; j < stack; j++)
+        {
             Vector2 v = new Vector2(Random.value * 2 - 1, Random.value * 2 - 1);
             v.Normalize();
 
-            Transform pos = GameObject.Find("Player").transform;
+            Transform pos = _inventory.player.transform;
 
             float d = 2f;
             Vector3 newPos = new Vector3(pos.position.x + v.x * d, pos.position.y + v.y * d, pos.position.z);
 
             var i = Instantiate(lootObjectPrefab, newPos, Quaternion.identity);
-            i.GetComponent<lootableObject>().setItem(this.item);
+            i.GetComponent<lootableObject>().setItem(item);
             i.transform.parent = null;
-
         }
 
         closePanel();
     }
-
 }

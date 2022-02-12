@@ -9,16 +9,16 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 03ad94bececfacf4f9a5b1ede0314d88, type: 3}
+  m_Script: {fileID: 11500000, guid: b14cbde3c1062d6499192203f9a9edb2, type: 3}
   m_Name: Gem
   m_EditorClassIdentifier: 
-  consumable: 0
   eupipmentType: 0
-  itemType: 1
-  statModifiers: 
-  stackLimit: -1
+  consumable: 0
   equipable: 0
+  itemType: 1
+  stackLimit: 999
   itemName: Gem
-  sprite: {fileID: -3632548115008049993, guid: 5d0df04a5bb42bf4b87bbd13c9572a3e, type: 3}
+  sprite: {fileID: 1065907229097277565, guid: 5d0df04a5bb42bf4b87bbd13c9572a3e, type: 3}
   itemSize: {x: 1, y: 1}
-  description: 
+  description: Looks valuable
+  maxStack: 999

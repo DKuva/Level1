@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: abbbc4d099c95874ab90f4a53e550ed4, type: 3}
+  m_Name: Hands
+  m_EditorClassIdentifier: 
+  eupipmentType: 3
+  consumable: 0
+  equipable: 1
+  itemType: 1
+  stackLimit: 1
+  currentDurability: 200
+  maxDurability: 200
+  itemName: Oven mitts
+  sprite: {fileID: 6279603008996742942, guid: 5d0df04a5bb42bf4b87bbd13c9572a3e, type: 3}
+  itemSize: {x: 1, y: 1}
+  description: 
+  equipmentSlot: 3
+  durability: 50
+  durabilityMax: 100
+  attribute: 03000000
+  modifier: 03000000
+  isPercentageModifier: 00

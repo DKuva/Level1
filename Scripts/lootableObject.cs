@@ -2,22 +2,31 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+[ExecuteInEditMode]
 public class lootableObject : MonoBehaviour
 {
-    public enum InteractMethod { proximity, collision, overlap, casting };
+    public enum InteractMethod { proximity, collision, overlap};
     public InteractMethod interactMethod = InteractMethod.collision;
 
     private Transform _playerLocation;
     public int detectionDistance = 10;
-
+    public Item dropItem;
+    [HideInInspector]
     public Item item;
     private float _sway;
     private int _swayDirection;
+    public bool pickupOnPress;
+    public GameObject player;
 
-    void Start()
+    void Awake()
     {
-        _playerLocation = (Transform)GameObject.Find("Player").GetComponent(typeof(Transform));
-        GetComponent<SpriteRenderer>().sprite = item.sprite;
+
+        if(player == null)
+        {
+            player = FindObjectOfType<PlayerScript>().gameObject;
+        }
+        _playerLocation = player.transform;
+        
 
         if (interactMethod == InteractMethod.collision)
         {
@@ -25,8 +34,13 @@ public class lootableObject : MonoBehaviour
         }
 
         _swayDirection = 1;
-        _sway = 0.0f;
+        _sway = Random.value*0.005f;
 
+        if(this.item != null)
+        {
+            this.item = Object.Instantiate(this.dropItem);
+            GetComponent<SpriteRenderer>().sprite = item.sprite;
+        }
     }
 
     public void setItem(Item item)
@@ -35,23 +49,23 @@ public class lootableObject : MonoBehaviour
         GetComponent<SpriteRenderer>().sprite = item.sprite;
 
     }
-    void Update()
+    void FixedUpdate()
     {
 
-        float maxsway = 0.001f;
+        float maxsway = 0.005f;
 
         if (Mathf.Abs(_sway) >= maxsway)
         {
            this._swayDirection *= -1;
         }
-        _sway += 0.00001f*this._swayDirection;       
+        _sway += 0.0001f*this._swayDirection;       
         transform.position = new Vector3(transform.position.x, transform.position.y + _sway, transform.position.z);
 
         if (interactMethod == InteractMethod.proximity)
         {
             if (Vector2.Distance(transform.position, _playerLocation.position) < detectionDistance)
             {
-                GameObject.Find("Player").GetComponent<PlayerScript>().pickUpItemProximity(gameObject);
+                player.GetComponent<PlayerScript>().pickUpItemProximity(gameObject);
                 
             }
         }else if(interactMethod == InteractMethod.overlap)
@@ -63,7 +77,7 @@ public class lootableObject : MonoBehaviour
                 {
                     if (c.name == "Player")
                     {
-                        GameObject.Find("Player").GetComponent<PlayerScript>().pickUpItemProximity(gameObject);
+                        player.GetComponent<PlayerScript>().pickUpItemProximity(gameObject);
                     }
                 }
             }

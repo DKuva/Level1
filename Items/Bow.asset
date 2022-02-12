@@ -9,16 +9,23 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 03ad94bececfacf4f9a5b1ede0314d88, type: 3}
+  m_Script: {fileID: 11500000, guid: abbbc4d099c95874ab90f4a53e550ed4, type: 3}
   m_Name: Bow
   m_EditorClassIdentifier: 
+  eupipmentType: 6
   consumable: 0
-  eupipmentType: 3
-  itemType: 1
-  statModifiers: 00000000050000000000000000000000
-  stackLimit: 1
   equipable: 1
+  itemType: 1
+  stackLimit: 1
+  currentDurability: 100
+  maxDurability: 100
   itemName: Bow
   sprite: {fileID: -6134447454603381998, guid: 5d0df04a5bb42bf4b87bbd13c9572a3e, type: 3}
   itemSize: {x: 1, y: 1}
   description: 
+  equipmentSlot: 6
+  durability: 50
+  durabilityMax: 100
+  attribute: 01000000
+  modifier: 05000000
+  isPercentageModifier: 00

@@ -1,6 +1,8 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Analytics;
+using System;
 
 public class PlayerScript : MonoBehaviour
 {
@@ -9,156 +11,182 @@ public class PlayerScript : MonoBehaviour
 	public Rigidbody2D rigidBody;
 	public Animator animator;
 
-	private GameObject _inventory;
-	private GameObject _equipment;
-	private GameObject _attributes;
-
 	public GameObject lootObjectPrefab;
 	public Item itemToSpawn;
 	private Vector2 _movement;
-	private void Awake()
+	private int _nextUpdate;
+	private int _analyticsLastUpdate = 0;
+
+	private int _lastStep;
+	public bool android = true;
+
+	[HideInInspector]
+	public bool actionButton = false;
+
+	private playerAttributes _attributes;
+	private playerEquipment _equipment;
+	private playerMovementAndroid _movementAndroid;
+	private playerMovement _movementPc;
+	public GameObject androidUI;
+    private void Awake()
     {
-		_inventory = GameObject.Find("Player/Camera/UI/Inventory");
-		_equipment = GameObject.Find("Player/Camera/UI/Equipment");
-		_attributes = GameObject.Find("Player/Camera/UI/Attributes");
+		_nextUpdate = 0;
+		_lastStep=0;
 
+		_attributes = GetComponent<playerUI>().attributes.GetComponent<playerAttributes>();
+		_equipment = GetComponent<playerUI>().equipment.GetComponent<playerEquipment>();
+		_movementAndroid = GetComponent<playerMovementAndroid>();
+		_movementPc = GetComponent<playerMovement>();
 
-		_inventory.SetActive(false);
-		_equipment.SetActive(false);
-		_attributes.SetActive(false);
+		if (!android)
+        {
+			_movementAndroid.enabled = false;
+        }
+        else
+        {
+			_movementPc.enabled = false;
+        }
+
+        if (android)
+        {
+			androidUI.SetActive(true);
+        }
+        else
+        {
+			androidUI.SetActive(false);
+        }
+	
+		AnalyticsResult res = Analytics.CustomEvent("build startup", new Dictionary<string, object> { {"Platform : ", Application.platform}, { "Time : ", DateTime.Now} });
+		Debug.Log("AnalyticsResult -build startup- " + res);
+
 	}
     void Update()
     {
-		
-		_movement.x = Input.GetAxisRaw("Horizontal");
-		_movement.y = Input.GetAxisRaw("Vertical");
-		_movement.Normalize();
-
-
-		animator.SetFloat("Vertical", _movement.y);
-		animator.SetFloat("Horizontal", _movement.x);
-		animator.SetBool("IsMoving", false);
-	
-
-		if (_movement.magnitude != 0)
-        {
-			animator.SetBool("IsMoving", true);
-        }
-
-
-        if (Input.GetKeyDown(KeyCode.I))
-        {
-			if (_inventory.activeSelf)
-			{
-				closeInventory();
-			}
-			else
-			{
-				openInventory();
-			}
-		}
-		if (Input.GetKeyDown(KeyCode.E))
-		{
-			if (_equipment.activeSelf)
-			{
-				closeEquipScreen(); 
-			}
-			else
-			{
-				openEquipScreen();
-			}
-		}
-		if (Input.GetKeyDown(KeyCode.C))
-		{
-			if (_attributes.activeSelf)
-			{
-				closeAttributeScreen();
-			}
-			else
-			{
-				openAttributeScreen();
-			}
-		}
 		if (Input.GetKeyDown(KeyCode.Space))
 		{
 			spawnItem();
 		}
 
-	}
-	
-	void FixedUpdate(){
+		if (Time.time >= _nextUpdate)
+		{
+			_attributes.resolveBuffs();
+			_nextUpdate += 1;
+		}
 
-		rigidBody.MovePosition(rigidBody.position + _movement*moveSpeed*Time.fixedDeltaTime);
+        if (android)
+        {
+			if (_movementAndroid.getStepsWalked() != _lastStep)
+			{
+				_lastStep = _movementAndroid.getStepsWalked();
+
+				if (_lastStep % 5 == 0)
+				{
+					_equipment.updateDurability();
+				}
+			}
+		}
+        else
+        {
+			if (_movementPc.getStepsWalked() != _lastStep)
+			{
+				_lastStep = _movementPc.getStepsWalked();
+
+				if (_lastStep % 5 == 0)
+				{
+					_equipment.updateDurability();
+				}
+			}
+		}
+		
 	}
 
-    public void OnTriggerEnter2D(Collider2D collision)
+    private void OnCollisionEnter2D(Collision2D collision)
     {
+		_movementAndroid.moveToPoint(new Vector2(transform.position.x, transform.position.y)); //stop moving at collision - android
+    }
+    public void OnTriggerStay2D(Collider2D collision)
+    {
+
+		if(_nextUpdate >= _analyticsLastUpdate + 5)
+        {
+			AnalyticsResult res = Analytics.CustomEvent("colided");
+			Debug.Log("AnalyticsResult -colided- " + res);
+			_analyticsLastUpdate = _nextUpdate;
+		}
+		
 		var obj = collision.GetComponent<lootableObject>();
-		if (_inventory.GetComponent<playerInventory>().addToInventory(obj.item))
-		{
-			Destroy(collision.gameObject);
+        if (obj.pickupOnPress)
+        {
+			if (actionButton)
+			{
+
+				if (GetComponent<playerUI>().inventory.GetComponent<playerInventory>().addToInventory(obj.item))
+				{
+					Destroy(collision.gameObject);
+				}
+				else
+				{
+					GetComponent<playerUI>().message.SetActive(true);
+					GetComponent<playerUI>().message.transform.GetChild(0).GetComponent<UnityEngine.UI.Text>().text = "Inventory full";
+					Debug.Log("Inventory full");
+				}
+			}
+        }
+        else
+        {
+			if (GetComponent<playerUI>().inventory.GetComponent<playerInventory>().addToInventory(obj.item))
+			{
+				Destroy(collision.gameObject);
+			}
+			else
+			{
+				GetComponent<playerUI>().message.SetActive(true);
+				GetComponent<playerUI>().message.transform.GetChild(0).GetComponent<UnityEngine.UI.Text>().text = "Inventory full";
+				Debug.Log("Inventory full");
+			}
 		}
-		else
-		{
-			GameObject.Find("Player/Camera/UI/Message").SetActive(true);
-			GameObject.Find("Player/Camera/UI/Message/Text").GetComponent<UnityEngine.UI.Text>().text = "Inventory full.";
-			Debug.Log("Inventory full");
-		}
+        
 	}
 
 	public void pickUpItemProximity(GameObject lootObject)
     {
 		var obj = lootObject.GetComponent<lootableObject>();
-		if (_inventory.GetComponent<playerInventory>().addToInventory(obj.item))
+		if (obj.pickupOnPress)
 		{
-			Destroy(lootObject.gameObject);
+			if (actionButton)
+			{
+				if (GetComponent<playerUI>().inventory.GetComponent<playerInventory>().addToInventory(obj.item))
+				{
+					Destroy(lootObject.gameObject);
+				}
+				else
+				{
+					GetComponent<playerUI>().message.SetActive(true);
+					GetComponent<playerUI>().message.transform.GetChild(0).GetComponent<UnityEngine.UI.Text>().text = "Inventory full";
+					Debug.Log("Inventory full");
+				}
+			}
+        }
+        else
+        {
+			if (GetComponent<playerUI>().inventory.GetComponent<playerInventory>().addToInventory(obj.item))
+			{
+				Destroy(lootObject.gameObject);
+			}
+			else
+			{
+				GetComponent<playerUI>().message.SetActive(true);
+				GetComponent<playerUI>().message.transform.GetChild(0).GetComponent<UnityEngine.UI.Text>().text = "Inventory full";
+				Debug.Log("Inventory full");
+			}
 		}
-		else
-		{
-			GameObject.Find("Player/Camera/UI/Message").SetActive(true);
-			GameObject.Find("Player/Camera/UI/Message/Text").GetComponent<UnityEngine.UI.Text>().text = "Inventory full.";
-			Debug.Log("Inventory full");
-		}
 	}
 
-	public void openInventory()
-    {
-		_inventory.SetActive(true);
-		GameObject.Find("Player/Camera/UI/PlayerOverlay/Panel/OpenInventory").gameObject.SetActive(false);
-
-    }
-	public void openEquipScreen()
-    {
-		_equipment.SetActive(true);
-		GameObject.Find("Player/Camera/UI/PlayerOverlay/Panel/OpenEquipment").gameObject.SetActive(false);
-	}
-
-	public void closeInventory()
-    {
-		_inventory.SetActive(false);
-		GameObject.Find("Player/Camera/UI/PlayerOverlay/Panel/OpenInventory").gameObject.SetActive(true);
-	}
-	public void closeEquipScreen()
-    {
-		_equipment.SetActive(false);
-		GameObject.Find("Player/Camera/UI/PlayerOverlay/Panel/OpenEquipment").gameObject.SetActive(true);
-	}
-	public void openAttributeScreen()
-	{
-		_attributes.SetActive(true);
-		GameObject.Find("Player/Camera/UI/PlayerOverlay/Panel/OpenAttributes").gameObject.SetActive(false);
-	}
-
-	public void closeAttributeScreen()
-	{
-		_attributes.SetActive(false);
-		GameObject.Find("Player/Camera/UI/PlayerOverlay/Panel/OpenAttributes").gameObject.SetActive(true);
-	}
 
 	public void spawnItem()
     {
 
-		Vector2 v = new Vector2(Random.value * 2 - 1, Random.value * 2 - 1);
+		Vector2 v = new Vector2(UnityEngine.Random.value * 2 - 1, UnityEngine.Random.value * 2 - 1);
 		v.Normalize();
 
 		float d = 2f;

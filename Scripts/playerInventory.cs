@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Analytics;
 
 public enum InventoryType {Limited, Infinite};
 public class playerInventory : MonoBehaviour
@@ -11,10 +12,16 @@ public class playerInventory : MonoBehaviour
     
     private GameObject _container;
     private GameObject _panel;
+
     public GameObject slotPrefab;
     public GameObject slotBgPrefab;
     private GameObject _inAir;
-   
+    public GameObject player;
+
+    public GameObject inventoryContent;
+    public GameObject inventoryPanel;
+
+    public GameObject detailsPanel;
     public int inventorySize = 16;
 
     private inventorySlot[] _slots;
@@ -23,9 +30,13 @@ public class playerInventory : MonoBehaviour
     
     private void Awake()
     {
-        _equipment = GameObject.Find("Player/Camera/UI/Equipment").GetComponent<playerEquipment>();
-        _container = GameObject.Find("Player/Camera/UI/Inventory/Scroll View/Viewport/Content");
-        _panel = GameObject.Find("Player/Camera/UI/Inventory/Scroll View/Viewport/Panel");
+        
+        _equipment = player.GetComponent<playerUI>().equipment.GetComponent<playerEquipment>();
+        _container = inventoryContent;
+        _panel = inventoryPanel;
+
+        if(_container == null){Debug.LogError("Cant find InventoryContainer");}
+        if (_panel == null){Debug.LogError("Cant find InventoryPanel");}
 
         _slots = _container.GetComponentsInChildren<inventorySlot>();
         inventorySize = _slots.Length;
@@ -37,15 +48,23 @@ public class playerInventory : MonoBehaviour
                 _slots[i + j * 8].slotIndex = new Vector2(i, j);
             }
         }
+        
+        gameObject.SetActive(false);
     }
 
     public bool addToInventory(Item item) //Try to add a single item to inventory
     {
-
-        if(inventoryType == InventoryType.Limited)
+        if(item == null)
+        {
+            Debug.LogError("item is null");
+        }
+        item.setupItem(); //Creates the dictionary used for attribute modifiers
+       
+        if (inventoryType == InventoryType.Limited)
         {
             if (item.itemType == Item.ItemType.Permanent)
             {
+                sendAnalyticsPickup(item);
                 Debug.Log("Permanent item picked up");
                 return true;
             }
@@ -58,6 +77,7 @@ public class playerInventory : MonoBehaviour
                     {
                         if (_slots[i].placeItemInSlot(item)) //Returns false if unable to place
                         {
+                            sendAnalyticsPickup(item);
                             return true;
                         }
                     }
@@ -74,6 +94,7 @@ public class playerInventory : MonoBehaviour
             while(true){
                 if (item.itemType == Item.ItemType.Permanent)
                 {
+                    sendAnalyticsPickup(item);
                     Debug.Log("Permanent item picked up");
                     return true;
                 }
@@ -86,7 +107,9 @@ public class playerInventory : MonoBehaviour
                         {
                             if (_slots[i].placeItemInSlot(item)) //Returns false if unable to place
                             {
+                                sendAnalyticsPickup(item);
                                 return true;
+                                
                             }
                         }
                     }
@@ -100,6 +123,93 @@ public class playerInventory : MonoBehaviour
             
         }
     }
+
+    public bool addStack(Item item, int Stack) //Try to add a stack of items to inventory, doesent consider about max stack
+    {
+        if (item == null)
+        {
+            Debug.LogError("item is null");
+        }
+        item.setupItem();
+
+
+        if (inventoryType == InventoryType.Limited)
+        {
+
+            for (int i = 0; i < inventorySize; i++)
+            {
+                if (_slots[i].gameObject.activeSelf)
+                {
+                    if(_slots[i].item == null)
+                    {
+                        if (_slots[i].placeItemInSlot(item)) //Returns false if unable to place
+                        {
+                            sendAnalyticsPickup(item);
+                            _slots[i].changeStackNumber(Stack);
+                            return true;
+                        }
+                    }else if(_slots[i].item.itemName != item.itemName)
+                    {
+                        if (_slots[i].placeItemInSlot(item)) //Returns false if unable to place
+                        {
+                            sendAnalyticsPickup(item);
+                            _slots[i].changeStackNumber(Stack);
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+        else
+
+        {
+            while (true)//doesen't work
+            {
+                if (item.itemType == Item.ItemType.Permanent)
+                {
+                    sendAnalyticsPickup(item);
+                    Debug.Log("Permanent item picked up");
+                    return true;
+                }
+
+                if (!_equipment.tryToEquip(item))
+                {
+                    for (int i = 0; i < inventorySize; i++)
+                    {
+                        if (_slots[i].gameObject.activeSelf)
+                        {
+                            if (_slots[i].placeItemInSlot(item)) //Returns false if unable to place
+                            {
+                                sendAnalyticsPickup(item);
+                                return true;
+                            }
+                        }
+                    }
+                    addRow();
+                }
+                else
+                {
+                    return true;
+                }
+            }
+
+        }
+    }
+    public void addToInventoryNoEquip(Item item) //Adds to inventory without calling an event or trying to equip - used for returning an equipped item to the inventory
+    {
+        for (int i = 0; i < inventorySize; i++)
+        {
+            if (_slots[i].gameObject.activeSelf)
+            {
+                if (_slots[i].placeItemInSlot(item)) //Returns false if unable to place
+                {                 
+                    break;
+                }
+            }
+        }
+    }
+
     public void placeItemInSlot(Item item, Vector2 slot) //Assumes it's a valid slot
     {
         int s = (int)(slot.x + slot.y * 8);
@@ -124,6 +234,13 @@ public class playerInventory : MonoBehaviour
             return true;
         }
     }
+
+    private void sendAnalyticsPickup(Item item)
+    {
+        AnalyticsResult res = Analytics.CustomEvent("Picked up item", new Dictionary<string, object> { { "Item name : ", item.itemName }, { "item type : ", item.itemType } });
+        Debug.Log("AnalyticsResult -Picked up Item- " + res);
+    }
+
     public int numberOfRows()
     {
         int i = Mathf.RoundToInt(inventorySize / 8);

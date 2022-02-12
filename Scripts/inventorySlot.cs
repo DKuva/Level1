@@ -2,35 +2,59 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.Analytics;
+
 
 public class inventorySlot : MonoBehaviour, IPointerDownHandler, IPointerExitHandler, IPointerEnterHandler
 {
 
-    public GameObject inAirObject;
-    private GameObject _detailsPanel;
+    private inAirItem _inAirObject;
+
+
+    private detailsPanel _detailsPanel;
+
+    public GameObject inventory;
 
     private playerInventory _inventory;
     private playerEquipment _equipment;
+    private playerAttributes _attributes;
     private UnityEngine.UI.Text _counter;
     private UnityEngine.UI.Image _image;
 
+    [HideInInspector]
     public Item item;
     private int _stack = 0;
 
-
+    [HideInInspector]
     public Vector2 slotIndex;
+
+    private bool _touching;
+    private int _touchedTimer = 0;
+    private int _holdTime = 10000;
+
+    private bool _android;
 
     private void Awake()
     {
+        
         _counter = GetComponentInChildren<UnityEngine.UI.Text>();
         _image = transform.GetChild(0).GetComponent<UnityEngine.UI.Image>();
         _image.gameObject.SetActive(false);
 
-        _detailsPanel = GameObject.Find("Player/Camera/UI/DetailsPanel");
+        _inventory = inventory.GetComponent<playerInventory>();
+
+        _detailsPanel = _inventory.player.GetComponent<playerUI>().detailsPanel.GetComponent<detailsPanel>();
         _detailsPanel.gameObject.SetActive(false);
 
-        _inventory = GameObject.Find("Player/Camera/UI/Inventory").GetComponent<playerInventory>();
-        _equipment = GameObject.Find("Player/Camera/UI/Equipment").GetComponent<playerEquipment>();
+        _equipment = _inventory.player.GetComponent<playerUI>().equipment.GetComponent<playerEquipment>();
+        _attributes = _inventory.player.GetComponent<playerUI>().attributes.GetComponent<playerAttributes>();
+        _inAirObject = _inventory.player.GetComponent<playerUI>().inAirItem.GetComponent<inAirItem>();
+        _android = _inventory.player.GetComponent<PlayerScript>().android;
+
+        if (_attributes == null) { Debug.LogError("failed to find attributes"); }
+        if (_equipment == null) { Debug.LogError("failed to find equipment"); }
+        if (_inAirObject == null) { Debug.LogError("failed to find inAirObject"); }
+        if (_detailsPanel == null) { Debug.LogError("failed to find detailsPanel"); }
 
         if (this._stack <= 1)
         {
@@ -42,37 +66,82 @@ public class inventorySlot : MonoBehaviour, IPointerDownHandler, IPointerExitHan
         }
 
     }
-
-    public void OnPointerEnter(PointerEventData eventData) //Show detail panel if hovering
+    private void Update()
     {
-        if(item != null)
+        if(Input.touchCount == 0)
         {
-            _detailsPanel.gameObject.SetActive(true);
-            var pos = new Vector3(transform.position.x + 1.5f, transform.position.y + 1.2f, transform.position.z);
-            _detailsPanel.transform.position = pos;
-            _detailsPanel.GetComponent<detailsPanel>().showItem(this.item);
+            _touching = false;
         }
+        if (_touching)
+        {
+            _touchedTimer++;
+            
+            if(_touchedTimer >= _holdTime*Time.deltaTime)
+            {
+                if (item != null)
+                {
+                    //Place item in air on touch hold
+                    _inAirObject.openPanel(this.item, this._stack, transform, this.slotIndex, "Inventory");
+                    changeStackNumber(1);
+                    removeItemInSlot();
+            
+                    _touchedTimer = 0;
+                    _touching = false;
+                }
+            }
+        }
+    }
+
+    public void OnPointerEnter(PointerEventData eventData) 
+    {
+        //Tell inAirObject where to drop an item
+        if (_inAirObject.gameObject.activeSelf == true)
+        {
+            _inAirObject.setHoveringOver(gameObject);
+        }
+
+        //Display details panel for item - pc only
+        if (!_android)
+        {
+            if (item != null)
+            {
+                _detailsPanel.showSlot(this);
+            }
+            else
+            {
+                _detailsPanel.gameObject.SetActive(false);
+            }
+        }
+            
     }
 
     public void OnPointerExit(PointerEventData eventData)
     {
-        _detailsPanel.gameObject.SetActive(false);
-
+        //InAirItem no longer on slot
+        if (_inAirObject.gameObject.activeSelf == true)
+        {
+            _inAirObject.setHoveringOver(null);
+        }
     }
     public void OnPointerDown(PointerEventData eventData) //On item slot pressed
     {
 
-        if (inAirObject.activeSelf == true)
+        if (_android)
         {
-            if (placeItemInSlot(inAirObject.GetComponent<inAirItem>().item))
-            {
-                changeStackNumber(inAirObject.GetComponent<inAirItem>().stack);
-                inAirObject.GetComponent<inAirItem>().closePanel();
-            }
-            else
-            {
-                inAirObject.GetComponent<inAirItem>().returnItem();
-            }
+            pointerDownAndroid(eventData);
+        }
+        else
+        {
+            pointerDown(eventData);
+        }
+        
+    }
+    private void pointerDown(PointerEventData eventData)
+    {
+        if (_inAirObject.gameObject.activeSelf == true)
+        {
+            //drop inAirItem into slot
+            _inAirObject.dropItem();
 
         }
         else
@@ -80,13 +149,14 @@ public class inventorySlot : MonoBehaviour, IPointerDownHandler, IPointerExitHan
 
             if (item != null)
             {
-                if ( (eventData.button == PointerEventData.InputButton.Right) & (item.equipable) )
+                if ((eventData.button == PointerEventData.InputButton.Right) & (item.equipable))
                 {
                     //equip item
                     _equipment.equipItem(item);
                     removeItemInSlot();
 
-                }else
+                }
+                else
                 if ((eventData.button == PointerEventData.InputButton.Middle) & (item.consumable == true))
                 {
                     //consume item
@@ -95,10 +165,45 @@ public class inventorySlot : MonoBehaviour, IPointerDownHandler, IPointerExitHan
                 }
                 else
                 {
-                    inAirObject.GetComponent<inAirItem>().openPanel(this.item,this._stack, transform, this.slotIndex, "Inventory");
+                    //Place item in air
+                    _inAirObject.openPanel(this.item, this._stack, transform, this.slotIndex, "Inventory");
                     changeStackNumber(1);
                     removeItemInSlot();
-                    
+
+                }
+            }
+        }
+    }
+    private void pointerDownAndroid(PointerEventData eventData)
+    {
+
+
+        if(Input.touchCount == 1)
+        {
+            if(item != null)
+            {
+                //display details panel on tap
+                _touching = true;
+                _detailsPanel.showSlotStatic(this);
+            }
+
+        }else if( Input.touchCount == 2)
+        {
+            if(item != null)
+            {
+                if ((item.equipable))
+                {
+                    //equip item
+                    _equipment.equipItem(item);
+                    removeItemInSlot();
+                    _detailsPanel.gameObject.SetActive(false);
+                }
+                else
+                if ((item.consumable == true))
+                {
+                    //consume item
+                    consumeItem();
+                    removeItemInSlot();
                 }
             }
         }
@@ -229,8 +334,19 @@ public class inventorySlot : MonoBehaviour, IPointerDownHandler, IPointerExitHan
     }
     public void consumeItem()
     {
-        GameObject.Find("Player/Camera/UI/Message").SetActive(true);
-        GameObject.Find("Player/Camera/UI/Message/Text").GetComponent<UnityEngine.UI.Text>().text = ("You consumed " + this.item.itemName);
+        AnalyticsResult res = Analytics.CustomEvent("Consumed item", new Dictionary<string, object> { { "Item name : ", item.itemName }, { "item type : ", item.itemType } });
+        Debug.Log("AnalyticsResult -Consumed Item- " + res);
+
+        consumeableItem tempItem = (consumeableItem)item;
+
+        _attributes.addStats(item.statModifiers);
+        foreach(Buff b in tempItem.buffs)
+        {
+            _attributes.addBuff(b);
+        }
+       
+        _inventory.player.GetComponent<playerUI>().message.SetActive(true);
+        _inventory.player.GetComponent<playerUI>().message.transform.GetChild(0).GetComponent<UnityEngine.UI.Text>().text = ("You consumed " + this.item.itemName);
 
     }
 
@@ -246,5 +362,9 @@ public class inventorySlot : MonoBehaviour, IPointerDownHandler, IPointerExitHan
             _counter.text = _stack.ToString();
         }
 
+    }
+    public int getCurrentStack()
+    {
+        return this._stack;
     }
 }
