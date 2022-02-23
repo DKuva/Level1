@@ -20,7 +20,7 @@ public class Item : ScriptableObject
     [HideInInspector]
     public ItemType itemType = ItemType.Pickup;
     [HideInInspector]
-    public Dictionary<playerAttributes.attributes,atrVal> statModifiers = new Dictionary<playerAttributes.attributes, atrVal>();
+    public Dictionary<attributeData.attributes,atrVal> statModifiers = new Dictionary<attributeData.attributes, atrVal>();
     [HideInInspector]
     public int stackLimit;
     [HideInInspector]

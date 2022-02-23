@@ -10,21 +10,24 @@ public class lookTrigger : MonoBehaviour
 
     public int detectionDistance = 5;
     public int lookTime= 5;
-    private cameraMovement _cam;
+
+    public delegate void lookEvent(GameObject target, int lookTIme);
+    public static event lookEvent look;
     private void Awake()
     {
         if (player == null)
         {
             player = FindObjectOfType<PlayerScript>().gameObject;
         }
-        _cam = player.GetComponent<cameraMovement>();
     }
     void Update()
     {
         if (Vector2.Distance(transform.position, player.transform.position) < detectionDistance)
         {
-
-            _cam.lookAtTarget(lookTarget,lookTime);
+            if(look != null)
+            {
+                look(lookTarget, lookTime);
+            }
             Destroy(gameObject);
 
         }

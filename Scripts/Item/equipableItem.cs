@@ -9,7 +9,7 @@ public class equipableItem : Item
     public int durability;
     public int durabilityMax;
 
-    public playerAttributes.attributes[] attribute;
+    public attributeData.attributes[] attribute;
     public int[] modifier;
     public bool[] isPercentageModifier;
 
@@ -24,7 +24,7 @@ public class equipableItem : Item
         consumable = false;
         stackLimit = 1;
         itemType = ItemType.Pickup;
-        statModifiers = new Dictionary<playerAttributes.attributes, atrVal>();
+        statModifiers = new Dictionary<attributeData.attributes, atrVal>();
 
         for (int i = 0; i < attribute.Length; i++)
         {

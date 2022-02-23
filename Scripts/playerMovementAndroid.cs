@@ -15,14 +15,16 @@ public int moveSpeed = 5;
 	private bool _dontMove = false;
 	[HideInInspector]
 	public bool isMoving =  false;
-	private bool _sentFiveTimes = false;
-	private int _sendTimes = 0;
-	private bool _sent = false;
+
 
 	public Joystick _joystic;
 
 	private Vector3 _moveTarget = new Vector2();
 	private bool _activeMoveT = false;
+
+	public delegate void walkEvent();
+	public static event walkEvent walkedTenUnits;
+	public static event walkEvent walkedFiveUnits;
 
 	private void Awake()
 	{
@@ -84,33 +86,25 @@ public int moveSpeed = 5;
 
 		float dist = _movement.magnitude * moveSpeed * Time.fixedDeltaTime;
 		_stepDistance += dist;
+
 		if (_stepDistance >= 1)
 		{
 			_stepDistance = 0;
 			_stepsWalked += 1;
-			_sent = false;
-		}
-        if (!_sentFiveTimes)
-        {
-			if (_stepsWalked % 10 == 0 && _stepsWalked != 0 && !_sent)
+
+
+			if (_stepsWalked % 5 == 0)
 			{
-				sendAnalytics();
-				_sent = true;
-				_sendTimes++;
-				if(_sendTimes >= 5)
-                {
-					_sentFiveTimes = true;
-                }
+				walkedFiveUnits();
 			}
-
+			if (_stepsWalked % 10 == 0)
+			{
+				walkedTenUnits();
+			}
 		}
 
 	}
-	private void sendAnalytics()
-    {	
-		AnalyticsResult res = Analytics.CustomEvent("Walked 10 units");
-		Debug.Log("AnalyticsResult -Walked 10 units- " + res);
-	}
+
 	public int getStepsWalked()
     {
 		return _stepsWalked;

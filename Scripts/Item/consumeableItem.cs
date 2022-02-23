@@ -6,7 +6,7 @@ using UnityEngine;
 public class consumeableItem : Item
 {
     public int maxStack = 1;
-    public playerAttributes.attributes[] attribute;
+    public attributeData.attributes[] attribute;
     public int[] modifier;
     public bool[] isPercentageModifier;
 
@@ -19,7 +19,7 @@ public class consumeableItem : Item
         consumable = true;
         stackLimit = maxStack;
         itemType = ItemType.Pickup;
-        statModifiers = new Dictionary<playerAttributes.attributes, atrVal>();
+        statModifiers = new Dictionary<attributeData.attributes, atrVal>();
 
         for (int i = 0; i < attribute.Length; i++)
         {

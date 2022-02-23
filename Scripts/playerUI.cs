@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Analytics;
+
 
 public class playerUI : MonoBehaviour
 {
@@ -15,7 +15,7 @@ public class playerUI : MonoBehaviour
     public GameObject inAirItem;
     public GameObject message;
 	public GameObject detailsPanel;
-
+	public GameObject uiRoot;
 	
 
 	private bool _disableInput;
@@ -32,6 +32,9 @@ public class playerUI : MonoBehaviour
 		if (equipment == null) { Debug.LogError("playerUI cant find equipment"); }
 		if (attributes == null) { Debug.LogError("playerUI cant find attributes"); }
 
+		playerInventory.sendMessage += showMessage;
+		inventorySlot.sendMessage += showMessage;
+
 	}
 
     private void Update()
@@ -39,88 +42,31 @@ public class playerUI : MonoBehaviour
 		
         if (!_disableInput)
         {
+			uiRoot.SetActive(true);
 			if (Input.GetKeyDown(KeyCode.I))
 			{
-				if (inventory.activeSelf)
-				{
-					closeInventory();
-				}
-				else
-				{
-					
-					openInventory();
-				}
+				inventory.GetComponent<uiPanel>().toggle();
 			}
 			if (Input.GetKeyDown(KeyCode.E))
 			{
-				if (equipment.activeSelf)
-				{
-					closeEquipScreen();
-				}
-				else
-				{
-					
-					openEquipScreen();
-				}
+				equipment.GetComponent<uiPanel>().toggle();
 			}
 			if (Input.GetKeyDown(KeyCode.C))
 			{
-				if (attributes.activeSelf)
-				{
-					closeAttributeScreen();
-				}
-				else
-				{
-					
-					openAttributeScreen();
-				}
+				attributes.GetComponent<uiPanel>().toggle();
 			}
 		}	
-	}
-	public void openInventory()
-	{
-		sendAnalytics(_windowType.inventory);
-		inventory.SetActive(true);
-		_panel.transform.GetChild(0).gameObject.SetActive(false);
-
-	}
-	public void openEquipScreen()
-	{
-		sendAnalytics(_windowType.equipment);
-		equipment.SetActive(true);
-		_panel.transform.GetChild(1).gameObject.SetActive(false);
-	}
-
-	public void closeInventory()
-	{
-		inventory.SetActive(false);
-		_panel.transform.GetChild(0).gameObject.SetActive(true);
-	}
-	public void closeEquipScreen()
-	{
-		equipment.SetActive(false);
-		_panel.transform.GetChild(1).gameObject.SetActive(true);
-	}
-	public void openAttributeScreen()
-	{
-		sendAnalytics(_windowType.attributes);
-		attributes.SetActive(true);
-		_panel.transform.GetChild(2).gameObject.SetActive(false);
-	}
-
-	public void closeAttributeScreen()
-	{
-		attributes.SetActive(false);
-		_panel.transform.GetChild(2).gameObject.SetActive(true);
 	}
 
 	public void seDisableInput(bool val)
     {
 		_disableInput = val;
+		uiRoot.SetActive(false);
     }
-	private void sendAnalytics(_windowType type)
-	{
-		AnalyticsResult res = Analytics.CustomEvent("Opened window", new Dictionary<string, object> { { "Window : ", type} });
-		Debug.Log("AnalyticsResult -Opened window- " + res);
+
+	public void showMessage(string message)
+    {
+		GetComponent<playerUI>().message.SetActive(true);
+		GetComponent<playerUI>().message.transform.GetChild(0).GetComponent<UnityEngine.UI.Text>().text = message;
 	}
 }

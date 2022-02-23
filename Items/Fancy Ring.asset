@@ -26,6 +26,6 @@ MonoBehaviour:
   equipmentSlot: 7
   durability: 999
   durabilityMax: 999
-  attribute: 0600000008000000
+  attribute: 0300000004000000
   modifier: 1e0000001e000000
   isPercentageModifier: 0101

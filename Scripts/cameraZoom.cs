@@ -6,9 +6,13 @@ public class cameraZoom : MonoBehaviour
 {
     public int minZoom = 2;
     public int maxZoom = 8;
-
+    private Camera _mCamera;
     private float _touchDistance;
 
+    private void Awake()
+    {
+        _mCamera = Camera.main;
+    }
     void Update()
     {
         if (Input.touchCount == 2)
@@ -32,15 +36,15 @@ public class cameraZoom : MonoBehaviour
     }
     public void zoom(float zoom)
     {
-        Camera.main.orthographicSize += zoom * 0.001f;
-        if (Camera.main.orthographicSize < minZoom)
+        _mCamera.orthographicSize += zoom * 0.001f;
+        if (_mCamera.orthographicSize < minZoom)
         {
-            Camera.main.orthographicSize = minZoom;
+            _mCamera.orthographicSize = minZoom;
 
         }
-        if (Camera.main.orthographicSize > maxZoom)
+        if (_mCamera.orthographicSize > maxZoom)
         {
-            Camera.main.orthographicSize = maxZoom;
+            _mCamera.orthographicSize = maxZoom;
 
         }
     }

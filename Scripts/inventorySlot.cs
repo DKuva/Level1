@@ -17,7 +17,7 @@ public class inventorySlot : MonoBehaviour, IPointerDownHandler, IPointerExitHan
 
     private playerInventory _inventory;
     private playerEquipment _equipment;
-    private playerAttributes _attributes;
+    private attributeHandler _attributes;
     private UnityEngine.UI.Text _counter;
     private UnityEngine.UI.Image _image;
 
@@ -29,13 +29,18 @@ public class inventorySlot : MonoBehaviour, IPointerDownHandler, IPointerExitHan
     public Vector2 slotIndex;
 
     private bool _touching;
-    private int _touchedTimer = 0;
-    private int _holdTime = 10000;
 
     private bool _android;
 
+    public delegate void consumeEvent(Item item);
+    public static event consumeEvent consumedItem;
+
+    public delegate void message(string message);
+    public static event message sendMessage;
+
     private void Awake()
     {
+       
         
         _counter = GetComponentInChildren<UnityEngine.UI.Text>();
         _image = transform.GetChild(0).GetComponent<UnityEngine.UI.Image>();
@@ -47,7 +52,8 @@ public class inventorySlot : MonoBehaviour, IPointerDownHandler, IPointerExitHan
         _detailsPanel.gameObject.SetActive(false);
 
         _equipment = _inventory.player.GetComponent<playerUI>().equipment.GetComponent<playerEquipment>();
-        _attributes = _inventory.player.GetComponent<playerUI>().attributes.GetComponent<playerAttributes>();
+        _attributes = _inventory.player.GetComponent<attributeHandler>();
+
         _inAirObject = _inventory.player.GetComponent<playerUI>().inAirItem.GetComponent<inAirItem>();
         _android = _inventory.player.GetComponent<PlayerScript>().android;
 
@@ -73,10 +79,8 @@ public class inventorySlot : MonoBehaviour, IPointerDownHandler, IPointerExitHan
             _touching = false;
         }
         if (_touching)
-        {
-            _touchedTimer++;
-            
-            if(_touchedTimer >= _holdTime*Time.deltaTime)
+        {           
+            if(Input.GetTouch(0).phase == TouchPhase.Moved)
             {
                 if (item != null)
                 {
@@ -84,8 +88,6 @@ public class inventorySlot : MonoBehaviour, IPointerDownHandler, IPointerExitHan
                     _inAirObject.openPanel(this.item, this._stack, transform, this.slotIndex, "Inventory");
                     changeStackNumber(1);
                     removeItemInSlot();
-            
-                    _touchedTimer = 0;
                     _touching = false;
                 }
             }
@@ -94,25 +96,27 @@ public class inventorySlot : MonoBehaviour, IPointerDownHandler, IPointerExitHan
 
     public void OnPointerEnter(PointerEventData eventData) 
     {
+     
         //Tell inAirObject where to drop an item
         if (_inAirObject.gameObject.activeSelf == true)
         {
             _inAirObject.setHoveringOver(gameObject);
         }
-
-        //Display details panel for item - pc only
-        if (!_android)
+        else
         {
-            if (item != null)
+            //Display details panel for item - pc only
+            if (!_android)
             {
-                _detailsPanel.showSlot(this);
+                if (item != null)
+                {
+                    _detailsPanel.showSlot(this);
+                }
+                else
+                {
+                    _detailsPanel.gameObject.SetActive(false);
+                }
             }
-            else
-            {
-                _detailsPanel.gameObject.SetActive(false);
-            }
-        }
-            
+        }      
     }
 
     public void OnPointerExit(PointerEventData eventData)
@@ -125,6 +129,7 @@ public class inventorySlot : MonoBehaviour, IPointerDownHandler, IPointerExitHan
     }
     public void OnPointerDown(PointerEventData eventData) //On item slot pressed
     {
+        _inventory.enableScrolling(item == null);
 
         if (_android)
         {
@@ -136,6 +141,7 @@ public class inventorySlot : MonoBehaviour, IPointerDownHandler, IPointerExitHan
         }
         
     }
+    //slot behaviour on click
     private void pointerDown(PointerEventData eventData)
     {
         if (_inAirObject.gameObject.activeSelf == true)
@@ -144,41 +150,42 @@ public class inventorySlot : MonoBehaviour, IPointerDownHandler, IPointerExitHan
             _inAirObject.dropItem();
 
         }
-        else
-        {
-
-            if (item != null)
+        else if (item != null)
+        {         
+            if ((eventData.button == PointerEventData.InputButton.Right) & (item.equipable))
             {
-                if ((eventData.button == PointerEventData.InputButton.Right) & (item.equipable))
+                //equip item
+                if (!_equipment.tryToEquip(item))
                 {
-                    //equip item
                     _equipment.equipItem(item);
-                    removeItemInSlot();
+                }
+                removeItemInSlot();
 
-                }
-                else
-                if ((eventData.button == PointerEventData.InputButton.Middle) & (item.consumable == true))
-                {
-                    //consume item
-                    consumeItem();
-                    removeItemInSlot();
-                }
-                else
-                {
-                    //Place item in air
-                    _inAirObject.openPanel(this.item, this._stack, transform, this.slotIndex, "Inventory");
-                    changeStackNumber(1);
-                    removeItemInSlot();
+            }
+            else
+            if ((eventData.button == PointerEventData.InputButton.Middle) & (item.consumable == true))
+            {
+                //consume item
+                consumeItem();
+                removeItemInSlot();
+            }
+            else
+            {
+                //Place item in air
+                _inAirObject.openPanel(this.item, this._stack, transform, this.slotIndex, "Inventory");
+                changeStackNumber(1);
+                removeItemInSlot();
 
-                }
             }
         }
     }
+    //slot behaviour on click - android
     private void pointerDownAndroid(PointerEventData eventData)
     {
 
+        Touch touch = Input.GetTouch(0);
 
-        if(Input.touchCount == 1)
+        if(touch.tapCount == 1)
         {
             if(item != null)
             {
@@ -187,14 +194,17 @@ public class inventorySlot : MonoBehaviour, IPointerDownHandler, IPointerExitHan
                 _detailsPanel.showSlotStatic(this);
             }
 
-        }else if( Input.touchCount == 2)
+        }else if(touch.tapCount == 2)
         {
             if(item != null)
             {
                 if ((item.equipable))
                 {
                     //equip item
-                    _equipment.equipItem(item);
+                    if (!_equipment.tryToEquip(item))
+                    {
+                        _equipment.equipItem(item);
+                    }
                     removeItemInSlot();
                     _detailsPanel.gameObject.SetActive(false);
                 }
@@ -208,16 +218,21 @@ public class inventorySlot : MonoBehaviour, IPointerDownHandler, IPointerExitHan
             }
         }
     }
-
     public bool placeItemInSlot(Item item)
     {
+        return placeItemInSlot(item, 1);
+    }
+    public bool placeItemInSlot(Item item, int stack) 
+    {
         int nRows = _inventory.numberOfRows();
-
+        if(item == null || stack == 0)
+        {
+            return true;
+        }
         if(this.item == null)
         {
             if ((((int)slotIndex.x + item.itemSize.x) > 8) || (((int)slotIndex.y + item.itemSize.y) > nRows))
-            {
-                
+            {               
                 return false;
             }
 
@@ -251,19 +266,8 @@ public class inventorySlot : MonoBehaviour, IPointerDownHandler, IPointerExitHan
 
             this.item = item;
             _image.gameObject.SetActive(true);
-            this._stack += 1;
             _image.sprite = item.sprite;
             transform.localScale = new Vector3(this.item.itemSize.x, this.item.itemSize.y, 1);
-
-            if (this._stack <= 1)
-            {
-                _counter.text = "";
-            }
-            else
-            {
-                _counter.text = _stack.ToString();
-            }
-            return true;
 
         }
         else
@@ -272,28 +276,36 @@ public class inventorySlot : MonoBehaviour, IPointerDownHandler, IPointerExitHan
             {
                 return false;
             }
-            if(item.stackLimit != -1)
-            {
-                if ((this._stack + 1) > item.stackLimit)
-                {
-                    return false;
-                }
-            }
-
-            this._stack += 1;
-            if (this._stack <= 1)
-            {
-                _counter.text = "";
-            }
-            else
-            {
-                _counter.text = _stack.ToString();
-            }
-            return true;
         }
 
-        
+        if (item.stackLimit != -1) // infinite stack
+        {
+            if ((this._stack + stack) > item.stackLimit)
+            {
+                return false;
+            }
+        }
+        this._stack += stack;
+        if (this._stack <= 1)
+        {
+            _counter.text = "";
+        }
+        else
+        {
+            _counter.text = _stack.ToString();
+        }
+        return true;
 
+
+
+    }
+    public void removeStackInSlot()
+    {
+        if(item != null)
+        {
+            changeStackNumber(1);
+            removeItemInSlot();
+        }
     }
     public void removeItemInSlot()
     {
@@ -315,13 +327,12 @@ public class inventorySlot : MonoBehaviour, IPointerDownHandler, IPointerExitHan
             }
 
             transform.localScale = new Vector3(1, 1, 1);
-
             this.item = null;
-            _counter.text = " ";
             _image.sprite = null;
-
             _image.gameObject.SetActive(false);
+            _detailsPanel.gameObject.SetActive(false);
         }
+
         if (this._stack <= 1)
         {
             _counter.text = "";
@@ -334,8 +345,10 @@ public class inventorySlot : MonoBehaviour, IPointerDownHandler, IPointerExitHan
     }
     public void consumeItem()
     {
-        AnalyticsResult res = Analytics.CustomEvent("Consumed item", new Dictionary<string, object> { { "Item name : ", item.itemName }, { "item type : ", item.itemType } });
-        Debug.Log("AnalyticsResult -Consumed Item- " + res);
+        if(consumedItem != null)
+        {
+            consumedItem(item);
+        }
 
         consumeableItem tempItem = (consumeableItem)item;
 
@@ -344,10 +357,9 @@ public class inventorySlot : MonoBehaviour, IPointerDownHandler, IPointerExitHan
         {
             _attributes.addBuff(b);
         }
-       
-        _inventory.player.GetComponent<playerUI>().message.SetActive(true);
-        _inventory.player.GetComponent<playerUI>().message.transform.GetChild(0).GetComponent<UnityEngine.UI.Text>().text = ("You consumed " + this.item.itemName);
 
+        _detailsPanel.GetComponent<detailsPanel>().decStack();
+        sendMessage("You consumed " + item.itemName);
     }
 
     public void changeStackNumber(int newStack)

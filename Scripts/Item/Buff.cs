@@ -16,12 +16,20 @@ public class Buff : ScriptableObject
 
     public bool isPermanent;
     public int rampTime;
-    public playerAttributes.attributes[] attribute;
+    public attributeData.attributes[] attribute;
     public int[] modifier;
     public bool[] isPercentageModifier;
 
+    [HideInInspector]
+    public float[] deltaStat; //Used for returning attribute to previous value
+
     public void resetTimer()
     {
-        durationTimer = duration;
+       deltaStat = new float[modifier.Length];
+       for (int i = 0; i < deltaStat.Length; i++)
+       {
+           deltaStat[i] = 0;
+       }
+       durationTimer = duration;
     }
 }

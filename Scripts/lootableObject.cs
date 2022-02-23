@@ -12,7 +12,7 @@ public class lootableObject : MonoBehaviour
     public int detectionDistance = 10;
     public Item dropItem;
     [HideInInspector]
-    public Item item;
+    private Item _item;
     private float _sway;
     private int _swayDirection;
     public bool pickupOnPress;
@@ -30,36 +30,39 @@ public class lootableObject : MonoBehaviour
 
         if (interactMethod == InteractMethod.collision)
         {
-            this.GetComponent<BoxCollider2D>().isTrigger = true;
+            GetComponent<BoxCollider2D>().isTrigger = true;
         }
 
         _swayDirection = 1;
         _sway = Random.value*0.005f;
 
-        if(this.item != null)
+        if(dropItem != null)
         {
-            this.item = Object.Instantiate(this.dropItem);
-            GetComponent<SpriteRenderer>().sprite = item.sprite;
+            setNewItem(dropItem);
         }
     }
+    public void placeNearPlayer()
+    {
+        Vector2 v = new Vector2(UnityEngine.Random.value * 2 - 1, UnityEngine.Random.value * 2 - 1);
+        v.Normalize();
 
+        float d = 2f;
+        Vector3 newPos = new Vector3(_playerLocation.position.x + v.x * d, _playerLocation.position.y + v.y * d, _playerLocation.position.z);
+        transform.position = newPos;
+    }
     public void setItem(Item item)
     {
-        this.item = item;
+        _item = item;
         GetComponent<SpriteRenderer>().sprite = item.sprite;
-
+    }
+    public void setNewItem(Item item)
+    {
+        _item = Object.Instantiate(item);
+        GetComponent<SpriteRenderer>().sprite = _item.sprite;
     }
     void FixedUpdate()
     {
-
-        float maxsway = 0.005f;
-
-        if (Mathf.Abs(_sway) >= maxsway)
-        {
-           this._swayDirection *= -1;
-        }
-        _sway += 0.0001f*this._swayDirection;       
-        transform.position = new Vector3(transform.position.x, transform.position.y + _sway, transform.position.z);
+        sway();
 
         if (interactMethod == InteractMethod.proximity)
         {
@@ -75,7 +78,7 @@ public class lootableObject : MonoBehaviour
                 Collider2D[] collider = Physics2D.OverlapCircleAll(new Vector2(transform.position.x, transform.position.y), detectionDistance);
                 foreach (Collider2D c in collider)
                 {
-                    if (c.name == "Player")
+                    if (c.name == "Player Android")
                     {
                         player.GetComponent<PlayerScript>().pickUpItemProximity(gameObject);
                     }
@@ -83,5 +86,35 @@ public class lootableObject : MonoBehaviour
             }
         }
     }
+    private void sway()
+    {
+        float maxsway = 0.005f;
 
+        if (Mathf.Abs(_sway) >= maxsway)
+        {
+            this._swayDirection *= -1;
+        }
+        _sway += 0.0001f * this._swayDirection;
+        transform.position = new Vector3(transform.position.x, transform.position.y + _sway, transform.position.z);
+    }
+    public void lootItem()
+    {
+        if (pickupOnPress)
+        {
+            if (player.GetComponent<PlayerScript>().actionButton)
+            {
+                if (player.GetComponent<playerUI>().inventory.GetComponent<playerInventory>().addToInventory(_item))
+                {
+                    Destroy(gameObject);
+                }
+            }
+        }
+        else
+        {
+            if (player.GetComponent<playerUI>().inventory.GetComponent<playerInventory>().addToInventory(_item))
+            {
+                Destroy(gameObject);
+            }
+        }
+    }
 }

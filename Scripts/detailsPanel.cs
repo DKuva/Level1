@@ -6,6 +6,7 @@ public class detailsPanel : MonoBehaviour
 {
     private UnityEngine.UI.Image _image;
     private UnityEngine.UI.Text _name;
+    private int _maxStack;
     private UnityEngine.UI.Text _description;
     private UnityEngine.UI.InputField _inputText;
     private GameObject _sPanel;
@@ -18,7 +19,7 @@ public class detailsPanel : MonoBehaviour
         _description = transform.GetChild(2).GetComponent<UnityEngine.UI.Text>();
         _sPanel = transform.GetChild(3).gameObject;
         _inputText = _sPanel.GetComponentInChildren<UnityEngine.UI.InputField>();
-
+        
         if (_sPanel == null)
         {
             Debug.LogError("cant find panel");
@@ -37,19 +38,30 @@ public class detailsPanel : MonoBehaviour
             _sPanel.gameObject.SetActive(true);
 
             _inputText.text = slot.getCurrentStack().ToString();
-            pos = new Vector3(slot.transform.position.x + 1.5f, slot.transform.position.y + 1.5f, slot.transform.position.z);
+            pos = new Vector3(slot.transform.position.x + 1.6f, slot.transform.position.y + 1.6f, slot.transform.position.z);
             transform.position = pos;
 
         }
         else
         {
             _sPanel.gameObject.SetActive(false);
-            pos = new Vector3(slot.transform.position.x + 1.5f, slot.transform.position.y + 0.9f, slot.transform.position.z);
+            pos = new Vector3(slot.transform.position.x + 1.6f, slot.transform.position.y + 1.0f, slot.transform.position.z);
             transform.position = pos;
         }
 
         showItem(slot.item);
 
+    }
+    public void showSlot(equipSlot slot)
+    {
+        gameObject.SetActive(true);
+        Vector3 pos;
+
+        _sPanel.gameObject.SetActive(false);
+        pos = new Vector3(slot.transform.position.x - 1.6f, slot.transform.position.y - 1.0f, slot.transform.position.z);
+        transform.position = pos;
+
+        showItem(slot.item);
     }
     //Shows slot without changing its position - used in android build
     public void showSlotStatic(inventorySlot slot) 
@@ -72,11 +84,18 @@ public class detailsPanel : MonoBehaviour
 
     }
 
-    public void showItem(Item item)
+    public void showSlotStatic(equipSlot slot)
+    {
+        gameObject.SetActive(true);
+       _sPanel.gameObject.SetActive(false);
+        showItem(slot.item);
+    }
+
+    private void showItem(Item item)
     {
         _image.sprite = item.sprite;
         _name.text = item.itemName;
-
+        _maxStack = item.stackLimit;
         //generate description from item
        
         if(item.equipable)
@@ -91,7 +110,7 @@ public class detailsPanel : MonoBehaviour
                 desc = "Equip- " + item.eupipmentType;
             }
 
-            foreach (KeyValuePair<playerAttributes.attributes, atrVal> stat in item.statModifiers)
+            foreach (KeyValuePair<attributeData.attributes, atrVal> stat in item.statModifiers)
             {
                 if(stat.Value.value > 0)
                 {
@@ -117,16 +136,34 @@ public class detailsPanel : MonoBehaviour
 
     public void decStack()
     {
-        _inputText.text = (int.Parse(_inputText.text) - 1).ToString();
+        int num = int.Parse(_inputText.text);
+        if(num > 0)
+        {
+            _inputText.text = (num - 1).ToString();
+        }
+       
     }
     public void incStack()
     {
-        _inputText.text = (int.Parse(_inputText.text) + 1).ToString();
+        int num = int.Parse(_inputText.text);
+        if (num < _currentSlot.getCurrentStack())
+        {
+            _inputText.text = (num + 1).ToString();
+        }
     }
     public void splitStack()
     {
         int newStack = int.Parse(_inputText.text);
-        player.GetComponent<playerUI>().inventory.GetComponent<playerInventory>().addStack(_currentSlot.item, (_currentSlot.getCurrentStack() - newStack)); 
-        _currentSlot.changeStackNumber(newStack);
+        player.GetComponent<playerUI>().inventory.GetComponent<playerInventory>().addToInventory(_currentSlot.item, (_currentSlot.getCurrentStack() - newStack),true); 
+        if(newStack == 0)
+        {
+            _currentSlot.changeStackNumber(1);
+            _currentSlot.removeItemInSlot();
+        }
+        else
+        {
+            _currentSlot.changeStackNumber(newStack);
+        }
+        
     }
 }

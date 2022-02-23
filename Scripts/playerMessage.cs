@@ -6,6 +6,7 @@ public class playerMessage : MonoBehaviour
 {
 
     private int timer = 0;
+
     void Update()
     {
         int closeAfter = 200;

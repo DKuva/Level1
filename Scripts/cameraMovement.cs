@@ -32,6 +32,8 @@ public class cameraMovement : MonoBehaviour
         _movementAndroid = GetComponent<playerMovementAndroid>();
         _ui = GetComponent<playerUI>();
         _playerOverlay = _ui.playerOverlay.GetComponent<playerOverlay>();
+
+        lookTrigger.look += lookAtTarget;
     }
 
     private void Update()

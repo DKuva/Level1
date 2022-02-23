@@ -17,6 +17,8 @@ MonoBehaviour:
   equipable: 0
   itemType: 1
   stackLimit: 10
+  currentDurability: 0
+  maxDurability: 0
   itemName: Health potion
   sprite: {fileID: -9103589653696428608, guid: 5d0df04a5bb42bf4b87bbd13c9572a3e, type: 3}
   itemSize: {x: 1, y: 1}
@@ -24,6 +26,6 @@ MonoBehaviour:
   maxStack: 10
   attribute: 05000000
   modifier: 32000000
-  isPercentageModifier: 00
+  isPercentageModifier: 01
   buffs:
   - {fileID: 11400000, guid: c48cd5a88ceb0274ea51c6547eaf96f8, type: 2}

@@ -8,11 +8,9 @@ public class playerAttributes : MonoBehaviour
     private UnityEngine.UI.Text _atrStats;
 
     public GameObject player;
-
-    public enum attributes {strength, dexterity, endurance, inteligence, luck ,health,maxHealth,mana,maxMana};
-    private Dictionary<attributes, float> _currentStats = new Dictionary<attributes, float>();
-
-    public List<Buff> activeBuffs;
+    public GameObject attributeNamesObject;
+    public GameObject attributeValueObject;
+    public GameObject hpContainer;
 
     private UnityEngine.UI.Image _hpBar;
     private UnityEngine.UI.Image _mpBar;
@@ -20,201 +18,107 @@ public class playerAttributes : MonoBehaviour
     private UnityEngine.UI.Text _mpText;
 
     private GameObject _buffContainer;
+    private attributeHandler _attributes;
 
-
-
+    private List<attributeData.attributes> _showAttributes = new List<attributeData.attributes> {
+        attributeData.attributes.strength,
+        attributeData.attributes.dexterity,
+        attributeData.attributes.endurance,
+        attributeData.attributes.inteligence,
+        attributeData.attributes.luck};
 
     private void Awake()
     {
-        //Setup starting stats
-        _currentStats.Add(attributes.strength, 1);
-        _currentStats.Add(attributes.dexterity, 6);
-        _currentStats.Add(attributes.endurance, 5);
-        _currentStats.Add(attributes.inteligence, 2);
-        _currentStats.Add(attributes.luck, 1);
-        _currentStats.Add(attributes.health, 7);
-        _currentStats.Add(attributes.maxHealth, 10);
-        _currentStats.Add(attributes.mana, 5);
-        _currentStats.Add(attributes.maxMana, 8);
+        Debug.Log("playerAttributes");
+        attributeData.onAttributeChanged += updateStatsPanel;
+        attributeData.onAttributeChanged += updateHpPanel;
+        attributeHandler.buffTick += updateBuffSprite;
+        attributeHandler.addedBuff += addBuffSprite;
+        //PlayerScript.playerAwake += updateStatsPanel;
+        //PlayerScript.playerAwake += updateHpPanel;
+        
+        //gameObject.SetActive(false);
 
-        _atrNames = GameObject.Find("Attributes/Names").transform.GetChild(0).GetComponent<UnityEngine.UI.Text>();
-        _atrStats = GameObject.Find("Attributes/Stats").transform.GetChild(0).GetComponent<UnityEngine.UI.Text>();
-
+    }
+    private void Start()
+    {
+        setupPanel();
+        
+    }
+    public void setupPanel()
+    {
+        Debug.Log("setup panel");
+        _atrNames = attributeNamesObject.GetComponent<UnityEngine.UI.Text>();
+        _atrStats = attributeValueObject.GetComponent<UnityEngine.UI.Text>();
 
         //Setup heath bar
-        _hpBar = player.GetComponent<playerUI>().playerOverlay.GetComponent<playerOverlay>().hpContainer.transform.GetChild(0).GetComponent<UnityEngine.UI.Image>();
-        _mpBar = player.GetComponent<playerUI>().playerOverlay.GetComponent<playerOverlay>().hpContainer.transform.GetChild(1).GetComponent<UnityEngine.UI.Image>();
+        _hpBar = hpContainer.transform.GetChild(0).GetComponent<UnityEngine.UI.Image>();
+        _mpBar = hpContainer.transform.GetChild(1).GetComponent<UnityEngine.UI.Image>();
         _hpText = _hpBar.transform.GetChild(0).GetComponent<UnityEngine.UI.Text>();
         _mpText = _mpBar.transform.GetChild(0).GetComponent<UnityEngine.UI.Text>();
 
         _buffContainer = player.GetComponent<playerUI>().playerOverlay.GetComponent<playerOverlay>().buffContainer;
+        _attributes = player.GetComponent<attributeHandler>();
         updateStatsPanel();
+        updateHpPanel();
         gameObject.SetActive(false);
-        
     }
-
-
 
     public void updateStatsPanel()
     {
         _atrNames.text = "";
         _atrStats.text = "";
 
-        foreach (KeyValuePair<attributes, float> stat in _currentStats)
+        foreach (KeyValuePair<attributeData.attributes, attribute> stat in _attributes.getCurrentStats())
         {
-            _atrNames.text += stat.Key.ToString() + "\n";
-            _atrStats.text += stat.Value.ToString() + "\n";
+            if (_showAttributes.Contains(stat.Key))
+            {
+                _atrNames.text += stat.Key.ToString() + "\n";
+                _atrStats.text += stat.Value.getCurrentValue().ToString() + "\n";
+            }
 
         }
-
-        updateHpPanel();
     }
     public void updateHpPanel()
     {
-        float hpFill = (float)_currentStats[attributes.health] / (float)_currentStats[attributes.maxHealth];
-        float mpFill = (float)_currentStats[attributes.mana] / (float)_currentStats[attributes.maxMana];
+        attribute hp = _attributes.getStat(attributeData.attributes.health);
+        attribute mp = _attributes.getStat(attributeData.attributes.mana);
+
+        float hpFill = (float)hp.getCurrentValue() / hp.max;
+        float mpFill = (float)mp.getCurrentValue() / mp.max;
    
         _hpBar.fillAmount = hpFill;
         _mpBar.fillAmount = mpFill;
 
-        _hpText.text = _currentStats[attributes.health].ToString() + " / " + _currentStats[attributes.maxHealth].ToString();
-        _mpText.text = _currentStats[attributes.mana].ToString() + " / " + _currentStats[attributes.maxMana].ToString();
+        _hpText.text = hp.getCurrentValue().ToString() + " / " + hp.max.ToString();
+        _mpText.text = mp.getCurrentValue().ToString() + " / " + mp.max.ToString();
     }
 
-    //Reduce each activeBuff timer by 1, and resolve its effects if any
-    public void resolveBuffs()
+    public void updateBuffSprite()
     {
-        for(int t = 0; t<activeBuffs.Count;t++)
+
+        for(int t = 0; t<_attributes.activeBuffs.Count;t++)
         {
-            Buff b = activeBuffs[t];
-            b.durationTimer -= 1;
-            //Update buff sprite
+            Buff b = _attributes.activeBuffs[t];
+
             float fAmount = (float)b.durationTimer / (float)b.duration;
             _buffContainer.transform.GetChild(t).GetComponent<UnityEngine.UI.Image>().fillAmount = fAmount;
 
             if (b.durationTimer <= 0)
             {
-                activeBuffs.Remove(b);
                 Destroy(_buffContainer.transform.GetChild(t).gameObject);
-                
-                if (!b.isPermanent) // If Buff is permanent, don't revert stats to previous state, example - posion bottle
-                {
-                    if (b.type == Buff.buffType.incremental) 
-                    {
-                        for (int i = 0; i < b.modifier.Length; i++)
-                        {
-                            _currentStats[b.attribute[i]] -= b.modifier[i] * b.duration;
-                        }
-                    }
-                    else 
-                    {
-                        for (int i = 0; i < b.modifier.Length; i++)
-                        {
-                            _currentStats[b.attribute[i]] -= b.modifier[i];
-                        }
-                    }
-                }
 
-            }
-            else
-            {
-                if(b.type == Buff.buffType.incremental) //If incremental, apply mod on each resolveBuff()
-                {
-                    for( int i = 0; i< b.modifier.Length; i++)
-                    {
-                        _currentStats[b.attribute[i]] += b.modifier[i];
-                    }
-                }
-                else if(b.type == Buff.buffType.ramp) //If ramp, apply mod/rampTime on each resolveBuff() for rampTime
-                {
-                    if(b.durationTimer >= (b.duration - b.rampTime))
-                    {
-                        for (int i = 0; i < b.modifier.Length; i++)
-                        {
-                            float rampVal = (float)b.modifier[i] / (float)b.rampTime;
-                            _currentStats[b.attribute[i]] += rampVal;
-                        }
-                    }
-                }
-            }
-
+            }          
         }
-
-        
-        updateStatsPanel();
     }
+ 
 
-    //Apply limits to certain stats
-    private void correctStats()
+    public void addBuffSprite(Buff buff)
     {
-        if(_currentStats[attributes.health] > _currentStats[attributes.maxHealth]) { _currentStats[attributes.health] = _currentStats[attributes.maxHealth]; }
-        if (_currentStats[attributes.mana] > _currentStats[attributes.maxMana]) { _currentStats[attributes.mana] = _currentStats[attributes.maxMana]; }
-
-    }
-    public void addStats(Dictionary<playerAttributes.attributes,atrVal> modifiers)
-    {
-
-        foreach (KeyValuePair<attributes,atrVal> stat in modifiers)
-        {
-            if (stat.Value.isPercentage)
-            {             
-                _currentStats[stat.Key] = _currentStats[stat.Key]* (1f + stat.Value.value*0.01f);               
-            }
-            else
-            {
-                _currentStats[stat.Key] += stat.Value.value;
-            }         
-        }
-
-        correctStats();
-        updateStatsPanel();
-    }
-
-    public void removeStats(Dictionary<playerAttributes.attributes, atrVal> modifiers)
-    {
-
-        foreach (KeyValuePair<attributes, atrVal> stat in modifiers)
-        {
-            if (stat.Value.isPercentage)
-            {
-                _currentStats[stat.Key] = _currentStats[stat.Key] * (1f/(1f+(float)stat.Value.value*0.01f));
-            }
-            else
-            {
-                _currentStats[stat.Key] -= stat.Value.value;
-            }
-        }
-
-        correctStats();
-        updateStatsPanel();
-    }
-    public void addBuff(Buff buff)
-    {
-        Debug.Log("added buff " + buff.buffName);
-        Buff newBuff = Object.Instantiate(buff);
-
-        newBuff.resetTimer();
-        activeBuffs.Add(newBuff);
-
-        //If type instant, apply mod
-        if(buff.type == Buff.buffType.instant)
-        {
-            for (int i = 0; i < buff.modifier.Length; i++)
-            {
-                if (!buff.isPercentageModifier[i])
-                {
-                    _currentStats[buff.attribute[i]] += buff.modifier[i];
-                }
-                else
-                {
-                    _currentStats[buff.attribute[i]] += _currentStats[buff.attribute[i]]*((float)buff.modifier[i]*0.01f);
-                }
-               
-            }
-        }
+        Debug.Log("added buff sprite" + buff.buffName);
 
         //Create buff ui sprite
-        GameObject buffImage = new GameObject(newBuff.buffName);
+        GameObject buffImage = new GameObject(buff.buffName);
 
         RectTransform t = buffImage.AddComponent<RectTransform>();
         t.transform.SetParent(_buffContainer.transform);

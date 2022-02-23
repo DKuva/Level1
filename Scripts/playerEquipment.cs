@@ -5,23 +5,27 @@ using UnityEngine.EventSystems;
 
 public class playerEquipment : MonoBehaviour, IPointerDownHandler,IPointerEnterHandler
 {
+    
 
     private GameObject _container;
     private equipSlot[] _slots;
     public GameObject player;
 
-    private detailsPanel _detailsPanel;
-    private inAirItem _inAirItem;
     void Awake()
     {
+        Debug.Log("playerEquipment");
         _container = transform.GetChild(1).gameObject;
         _slots = _container.GetComponentsInChildren<equipSlot>();
-        _detailsPanel = player.GetComponent<playerUI>().inventory.GetComponent<playerInventory>().detailsPanel.GetComponent<detailsPanel>();
-        _inAirItem = player.GetComponent<playerUI>().inAirItem.GetComponent<inAirItem>();
 
+        playerMovement.walkedFiveUnits += updateDurability;
+        playerMovementAndroid.walkedFiveUnits += updateDurability;
+        playerInventory.equipItem += tryToEquip;
+ 
+    }
+    private void Start()
+    {
         gameObject.SetActive(false);
     }
-
     public void equipItem(Item item) //Will replace item in slot
     {
         Item.EupipmentType slotType = item.eupipmentType;
@@ -77,14 +81,9 @@ public class playerEquipment : MonoBehaviour, IPointerDownHandler,IPointerEnterH
 
     public void OnPointerDown(PointerEventData eventData)
     {
-        if (_inAirItem.gameObject.activeSelf)
-        {
-            _inAirItem.dropItem();
-        }
     }
 
     public void OnPointerEnter(PointerEventData eventData)
     {
-       _detailsPanel.gameObject.SetActive(false);
     }
 }

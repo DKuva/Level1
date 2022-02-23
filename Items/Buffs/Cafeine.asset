@@ -16,7 +16,7 @@ MonoBehaviour:
   sprite: {fileID: 758363962725616044, guid: 5d0df04a5bb42bf4b87bbd13c9572a3e, type: 3}
   duration: 10
   durationTimer: 0
-  type: 2
+  type: 0
   isPermanent: 0
   rampTime: 4
   attribute: 02000000

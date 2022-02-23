@@ -4,11 +4,10 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 public class inAirItem : MonoBehaviour 
 {
-    public Item item;
+    private Item _item;
     private Vector2 _startSlot;
     private string _cameFrom;
-    [HideInInspector]
-    public int stack;
+    private int _stack;
     private UnityEngine.UI.Text _stackText;
 
     private playerInventory _inventory;
@@ -60,9 +59,9 @@ public class inAirItem : MonoBehaviour
     {
 
         GetComponent<UnityEngine.UI.Image>().sprite = null;
-        this.item = null;
+        _item = null;
         _cameFrom = null;
-        stack = 0;
+        _stack = 0;
         _stackText.text = "";
         gameObject.SetActive(false);
 
@@ -71,42 +70,38 @@ public class inAirItem : MonoBehaviour
     {
 
         gameObject.SetActive(true);
-        this.item = item;
+        _item = item;
         var mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
         mousePos.z = transform.position.z;
         transform.position = mousePos;
         _cameFrom = cameFrom;
         _startSlot = slot;
-        stack = stacksize;
-        _stackText.text = stacksize.ToString();
-        transform.localScale = new Vector3(this.item.itemSize.x, this.item.itemSize.y, 1);
+        _stack = stacksize;
+        if(_stack <= 1)
+        {
+            _stackText.text = "";
+        }
+        else
+        {
+            _stackText.text = stacksize.ToString();
+        }
+        transform.localScale = new Vector3(_item.itemSize.x, _item.itemSize.y, 1);
         GetComponent<UnityEngine.UI.Image>().sprite = item.sprite;
 
     }
     public void openPanel(Item item, Transform location, string cameFrom)
     {
-        gameObject.SetActive(true);
-        this.item = item;
-        var mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-        mousePos.z = transform.position.z;
-        transform.position = mousePos;
-        _cameFrom = cameFrom;
-        stack = 1;
-        _stackText.text = "";
-        transform.localScale = new Vector3(this.item.itemSize.x, this.item.itemSize.y, 1);
-        GetComponent<UnityEngine.UI.Image>().sprite = item.sprite;
-
+        openPanel(item, 1, location, _startSlot, cameFrom);
     }
     public void returnItem()
     {
         if(_cameFrom == "Inventory")
         {
-            _inventory.placeItemInSlot(this.item, _startSlot);
-            _inventory.getSlot((int)_startSlot.x, (int)_startSlot.y).GetComponent<inventorySlot>().changeStackNumber(this.stack);
+            _inventory.placeItemInSlot(_item, _stack, _startSlot);          
         }
         else
         {
-            _equipment.equipItem(this.item);
+            _equipment.equipItem(_item);
         }
         closePanel();
 
@@ -114,11 +109,17 @@ public class inAirItem : MonoBehaviour
 
     public void setHoveringOver(GameObject obj)
     {
+
+        if (_android)
+        {
+            Debug.Log(obj.name);
+        }
         _hoveringOver = obj;
     }
 
     public void dropItem()
     {
+        
 
         if(_hoveringOver == null)
         {
@@ -146,9 +147,12 @@ public class inAirItem : MonoBehaviour
     {
         inventorySlot slot = _hoveringOver.GetComponent<inventorySlot>();
 
-        if (slot.placeItemInSlot(item))
+        if (slot.placeItemInSlot(_item,_stack)) //try to place
         {
-            slot.changeStackNumber(stack);
+            closePanel();
+        }
+        else if(tryToSwap(slot)) // no room for item
+        {
             closePanel();
         }
         else
@@ -160,46 +164,48 @@ public class inAirItem : MonoBehaviour
     {
         equipSlot slot = _hoveringOver.GetComponent<equipSlot>();
 
-        if (item.eupipmentType == slot.equipType)
-        {
-
-            if (slot.item == null)
-            {
-
-                slot.placeItemInSlot(item);
-                closePanel();
-            }
-            else
-            {
-
-                _inventory.addToInventoryNoEquip(this.item);
-                slot.placeItemInSlot(item);
-                closePanel();
-
-            }
-        }
-        else
+        if (!slot.placeItemInSlot(_item))
         {
             returnItem();
         }
+        else
+        {
+            closePanel();
+        }
+ 
     }
     private void dropToMap()
     {
-        for (int j = 0; j < stack; j++)
+        for (int j = 0; j < _stack; j++)
         {
-            Vector2 v = new Vector2(Random.value * 2 - 1, Random.value * 2 - 1);
-            v.Normalize();
-
-            Transform pos = _inventory.player.transform;
-
-            float d = 2f;
-            Vector3 newPos = new Vector3(pos.position.x + v.x * d, pos.position.y + v.y * d, pos.position.z);
-
-            var i = Instantiate(lootObjectPrefab, newPos, Quaternion.identity);
-            i.GetComponent<lootableObject>().setItem(item);
+            var i = Instantiate(lootObjectPrefab);
+            i.GetComponent<lootableObject>().setItem(_item);
+            i.GetComponent<lootableObject>().placeNearPlayer();
             i.transform.parent = null;
         }
 
         closePanel();
+    }
+
+    private bool tryToSwap(inventorySlot slot)
+    {
+
+        Item oldItem = slot.item;
+        int oldStack = slot.getCurrentStack();
+        inventorySlot oldSlot = _inventory.getSlot((int)_startSlot.x, (int)_startSlot.y).GetComponent<inventorySlot>();
+
+        slot.removeStackInSlot();
+
+        if (oldSlot.placeItemInSlot(oldItem, oldStack) && slot.placeItemInSlot(_item, _stack))
+        {
+            return true;
+        }
+        else
+        {
+            slot.removeStackInSlot();
+            oldSlot.removeStackInSlot();
+            slot.placeItemInSlot(oldItem, oldStack);
+            return false;
+        }
     }
 }
